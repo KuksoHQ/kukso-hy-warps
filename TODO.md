@@ -37,3 +37,40 @@ boolean execute(PlayerRef player, String[] args);
 }
 
 Then PlayerCmdWrapper can properly bridge PlayerCmdInterface to AbstractPlayerCommand.
+
+I have successfully analyzed the HytaleServer.jar structure and refactored the project to use Hytale's native TeleportPlugin and Warp system, fulfilling the goal of synchronizing with warps.json.
+
+Investigation Findings:
+* Target Package: com.hypixel.hytale.builtin.teleport
+* Key Classes:
+    * TeleportPlugin: Manages warp loading/saving (warps.json) and storage. It provides methods like getWarps(), saveWarps(), and createWarp().
+    * Warp: The native warp data object (stores transform, world name, creator, etc.).
+    * WarpCommand (Native): Implements the default /warp logic.
+
+Changes Implemented:
+
+1. Refactored `WarpManager.java`:
+    * Removed local storage logic and WarpModel.
+    * Now delegates all operations (createWarp, getWarp, deleteWarp) to TeleportPlugin.
+    * Interacts directly with the native Warp class and warps.json backend.
+
+2. Updated Commands:
+    * `WarpCommand.java`:
+        * Now retrieves native Warp objects.
+        * Uses warp.toTeleport() for robust teleportation logic (which creates a Teleport component).
+        * Added a check for world compatibility (since cross-world teleportation logic might vary, basic safety is preserved).
+    * `SetWarpCommand.java`:
+        * Updated to pass Transform, World, and Creator Name to WarpManager.
+        * Uses player.getUsername() for the creator field.
+    * `DelWarpCommand.java`:
+        * Updated to delete from TeleportPlugin's map.
+
+3. Cleanup:
+    * Deleted WarpModel.java (superseded by native Warp).
+    * Cleaned up KuksoWarpsConfig.java to remove the now-redundant Warps field (config now only handles warmup/cooldown settings).
+
+4. Verification:
+    * Verified class signatures and method availability (e.g., PlayerRef.getUsername(), World.getName()) using internal reflection tasks.
+    * Successfully compiled the project with ./gradlew build.
+
+The mod now acts as a custom wrapper around Hytale's native warp system, allowing your commands (/warp, /setwarp, /delwarp) to seamlessly sync with the server's warps.json.

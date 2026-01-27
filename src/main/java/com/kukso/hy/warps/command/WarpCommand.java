@@ -3,7 +3,7 @@ package com.kukso.hy.warps.command;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
 import com.kukso.hy.warps.WarpManager;
-import com.kukso.hy.warps.WarpModel;
+import com.hypixel.hytale.builtin.teleport.Warp;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.component.Store;
@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
 import com.kukso.hy.warps.util.PermissionUtil;
@@ -51,14 +50,17 @@ public class WarpCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
         UUID playerUuid = player.getUuid();
         String name = context.get(nameArg);
-        WarpModel warp = warpManager.getWarp(name);
+        Warp warp = warpManager.getWarp(name);
         
         if (warp == null) {
             player.sendMessage(Message.raw("Warp not found: " + name));
             return;
         }
 
-        if (!warp.worldUuid.equals(player.getWorldUuid())) {
+        // Cross-world check might be needed if Teleport component doesn't handle it automatically.
+        // Assuming Teleport handles it or we restrict it.
+        // Native Warp object stores world name.
+        if (!warp.getWorld().equals(world.getName())) {
              player.sendMessage(Message.raw("Warp is in another world! Cross-world teleportation is not supported yet."));
              return;
         }
@@ -91,17 +93,17 @@ public class WarpCommand extends AbstractPlayerCommand {
     }
 
     private void startWarmupCountdown(PlayerRef player, UUID playerUuid, Store<EntityStore> store,
-                                       Ref<EntityStore> ref, World world, WarpModel warp,
+                                       Ref<EntityStore> ref, World world, Warp warp,
                                        String warpName, int warmupSeconds) {
         warpManager.setWarmingUp(playerUuid, true);
-        // Copy position values - getPosition() may return a mutable reference
+        // Copy position values
         Vector3d pos = player.getTransform().getPosition();
         final double startX = pos.x;
         final double startY = pos.y;
         final double startZ = pos.z;
         final int[] secondsRemaining = {warmupSeconds};
 
-        // Send initial notification only once (no clear method exists)
+        // Send initial notification
         sendWarmupNotification(player, warmupSeconds);
 
         ScheduledFuture<?>[] futureHolder = new ScheduledFuture<?>[1];
@@ -146,14 +148,10 @@ public class WarpCommand extends AbstractPlayerCommand {
     }
 
     private void executeTeleport(PlayerRef player, UUID playerUuid, Store<EntityStore> store,
-                                  Ref<EntityStore> ref, World world, WarpModel warp, String warpName) {
+                                  Ref<EntityStore> ref, World world, Warp warp, String warpName) {
         warpManager.setWarmingUp(playerUuid, false);
 
-        Vector3f rot = new Vector3f();
-        rot.setYaw(warp.yaw);
-        rot.setPitch(0);
-
-        Teleport teleport = new Teleport(world, new Vector3d(warp.x, warp.y, warp.z), rot);
+        Teleport teleport = warp.toTeleport();
         store.addComponent(ref, Teleport.getComponentType(), teleport);
         player.sendMessage(Message.raw("Teleported to " + warpName));
 

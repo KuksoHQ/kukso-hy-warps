@@ -42,10 +42,8 @@ public class SetWarpCommand extends AbstractPlayerCommand {
             @Nonnull PlayerRef player,
             @Nonnull World world) {
         String name = context.get(nameArg);
-        Vector3d pos = player.getTransform().getPosition();
-        Vector3f rot = player.getHeadRotation();
 
-        warpManager.createWarp(name, player.getWorldUuid(), pos.x, pos.y, pos.z, rot.getYaw(), rot.getPitch());
+        warpManager.createWarp(name, player.getTransform(), world, player.getUsername(), store);
         //player.sendMessage(LocaleMan.get(player, "warps.set_success", Map.of("warp", name)));
         player.sendMessage(Message.raw("Warp " + name + " set successfully."));
     }

@@ -1,11 +1,23 @@
 package com.kukso.hy.warps;
 
+import com.hypixel.hytale.builtin.teleport.TeleportPlugin;
+import com.hypixel.hytale.builtin.teleport.Warp;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+import java.time.Instant;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class WarpManager {
-    private final java.util.Map<UUID, Long> cooldowns = new java.util.HashMap<>();
-    private final java.util.Set<UUID> warmingUp = new java.util.HashSet<>();
+    private final Map<UUID, Long> cooldowns = new ConcurrentHashMap<>();
+    private final Set<UUID> warmingUp = ConcurrentHashMap.newKeySet();
 
     public WarpManager() {
     }
@@ -41,22 +53,25 @@ public class WarpManager {
         cooldowns.put(uuid, System.currentTimeMillis() + (getCooldown() * 1000L));
     }
 
-    public void createWarp(String name, UUID worldUuid, double x, double y, double z, float yaw, float pitch) {
-        WarpModel warp = new WarpModel(name, worldUuid, x, y, z, yaw, pitch);
-        WarpConfigManager.get().warps.put(name, warp);
-        WarpConfigManager.save();
+    public void createWarp(String name, Transform transform, World world, String creator, Store<EntityStore> store) {
+        // Use native Warp class
+        Warp warp = new Warp(transform, name, world, creator, Instant.now());
+        
+        // Delegate to TeleportPlugin
+        TeleportPlugin.get().createWarp(warp, store);
+        TeleportPlugin.get().saveWarps();
     }
 
     public void deleteWarp(String name) {
-        WarpConfigManager.get().warps.remove(name);
-        WarpConfigManager.save();
+        TeleportPlugin.get().getWarps().remove(name);
+        TeleportPlugin.get().saveWarps();
     }
 
-    public WarpModel getWarp(String name) {
-        return WarpConfigManager.get().warps.get(name);
+    public Warp getWarp(String name) {
+        return (Warp) TeleportPlugin.get().getWarps().get(name);
     }
 
     public Collection<String> getWarpNames() {
-        return WarpConfigManager.get().warps.keySet();
+        return (Collection<String>) TeleportPlugin.get().getWarps().keySet();
     }
 }
